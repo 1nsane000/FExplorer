@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/new/res">
+        <file>folder-yellow-parent-icon.png</file>
+    </qresource>
+</RCC>
