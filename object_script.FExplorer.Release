@@ -1,0 +1,10 @@
+release/main.o
+release/widget.o
+release/qtexteditf.o
+release/qtablewidgetp.o
+release/qtablewidgetitemp.o
+release/qrc_resources.o
+release/moc_widget.o
+release/moc_qtexteditf.o
+release/moc_qtablewidgetp.o
+release/moc_qtablewidgetitemp.o

@@ -1,7 +1,7 @@
 #include "widget.h"
 #include "ui_widget.h"
 #include <QWidget>
-#include "qextableitem.h"
+#include "qtexteditf.h"
 
 #define FOLDER_PROPERTY 5
 
@@ -38,10 +38,13 @@ Widget::Widget(QWidget *parent) :
 
     createTable();
 
+    //test = new QLineEdit(this);
+    //connect(test, &QTextEditf::editingFinished, this, [&](){ test->setText(""); });
     QGridLayout *mainView = new QGridLayout(this);
     mainView->addWidget(fpathCbox,0,0,1,4);
     mainView->addWidget(driveCbox,1,0);
     mainView->addWidget(backButton,1,1);
+    //mainView->addWidget(test,1,2);
     mainView->addWidget(flistTable,2,0,1,4);
     //this->set
 
@@ -93,7 +96,7 @@ void Widget::fpathChanged(){
 
 void Widget::createTable()
 {
-    flistTable = new QTableWidget(0, 6, this);
+    flistTable = new QTableWidgetp(0, 6, this);
     QStringList labels;
     labels << "" << "File name" << "Date modified" << "Size";
 
@@ -123,11 +126,12 @@ void Widget::createTable()
                 this, &Widget::open);
     connect(flistTable, &QTableWidget::customContextMenuRequested,
                 this, &Widget::contextMenu);
-
-
-
+    connect(flistTable->itemDelegate(), &QAbstractItemDelegate::commitData,
+            this, &Widget::onCommitData);
 
 }
+
+
 
 void Widget::updateTable(const QString& directoryName){
     QDir dir(directoryName);
@@ -155,7 +159,9 @@ void Widget::updateTable(const QString& directoryName){
             //l->setPixmap(icon.pixmap(icon.availableSizes().first()));
             QTableWidgetItem *img = new QTableWidgetItem();
             img->setData(Qt::DecorationRole, icon.pixmap(icon.availableSizes().first()));
-            QTableWidgetItem *fileNameItem = new QTableWidgetItem(fname);
+            img->setFlags(img->flags() ^ Qt::ItemIsEditable);
+            QTableWidgetItem *fileNameItem = new QTableWidgetItem();
+            fileNameItem->setText(fname);
             fileNameItem->setFlags(fileNameItem->flags() ^ Qt::ItemIsEditable);
 
             QTableWidgetItem *dateModified = new QTableWidgetItem();
@@ -288,8 +294,10 @@ void Widget::contextMenu(const QPoint& pos){
     action = menu.exec(flistTable->mapToGlobal(pos));
     //qInfo()<< flistTable->item(flistTable->itemAt(pos)->row(),1)->text();
 
-    if(action == open)
-        Widget::open(item->row(), 0);
+    if(action == open){
+        if(item)
+            Widget::open(item->row(), 0);
+    }
     else if(action == copy)
     {
         copyCut(5);
@@ -312,6 +320,9 @@ void Widget::contextMenu(const QPoint& pos){
         {
             QFileInfo pfile(url.toString().replace(QRegularExpression("file:///"), ""));
             //pfile.exists();
+            qInfo() << url;
+            if(url.fileName()=="." ||url.fileName()=="..")
+                continue;
             if(pfile.isFile())
                 qInfo() << QFile::copy(pfile.absoluteFilePath(),currentDir + "/"+ pfile.fileName());
             else {
@@ -333,7 +344,25 @@ void Widget::contextMenu(const QPoint& pos){
     else if(action == del)
     {
         //ovo treba dopuniti da pita da li obrisati, i da brise kroz sve selektovane a ne samo trenutni selektovan
-        QFile::remove(currentDir + "/" +item->text());
+        auto reply = QMessageBox::question(this, " ",
+                                           "Are you sure you want to delete the selected items?",
+                                           QMessageBox::Yes|QMessageBox::No);
+        if(reply == QMessageBox::No)
+            return;
+        for(auto i: flistTable->selectedItems())
+        {
+            if(i->column() == 1)
+            {
+                QFileInfo info(currentDir + "/" +i->text());
+                if(info.isFile())
+                    QFile::remove(currentDir + "/" +i->text());
+                else if(info.isDir())
+                {
+                    QDir d(currentDir + "/" +i->text());
+                    d.removeRecursively();
+                }
+            }
+        }
         updateTable(currentDir);
         refreshTable();
     }
@@ -350,12 +379,28 @@ void Widget::contextMenu(const QPoint& pos){
 
 }
 
+void Widget::onCommitData(QWidget* lineEdit)
+{
+    QString strNewText = reinterpret_cast<QLineEdit*>(lineEdit)->text();
+    QTableWidgetItem* item = flistTable->item(flistTable->currentRow(),1);
+    item->setText(strNewText);
+    QFile::rename(itemToRename, currentDir + "/" + strNewText);
+    item->setFlags(item->flags() & ~Qt::ItemIsEditable);
+    updateTable(currentDir);
+    refreshTable();
+
+
+}
+
 void Widget::copyCut(int dropEffect){
     //ako je dropEffect 2 katuje, a ako je 5 kopira
     QMimeData* mdata = new QMimeData;
     QList<QUrl> urls;
     for(auto item: flistTable->selectedItems())
-        urls.append(QUrl::fromLocalFile(currentDir + "/" + flistTable->item(item->row(),1)->text()));
+    {
+        if(item->column() == 1)
+            urls.append(QUrl::fromLocalFile(currentDir + "/" + item->text()));
+    }
     mdata->setUrls(urls);
     QByteArray data;
     QDataStream stream(&data,QIODevice::WriteOnly);
@@ -374,11 +419,20 @@ void Widget::copyFolder(const QString& cfolder, const QString& dfolder)
     //rekurzivno kopiranje foldera
     QDir destinationFolder(dfolder);
     QDir copyFolder(cfolder);
+    if(destinationFolder.absolutePath().contains(copyFolder.absolutePath()))
+     {
+        QMessageBox::critical(this, " ","Cannot copy a directory into it's subdirectory");
+        return;
+     }
+
+    QFileInfoList list = copyFolder.entryInfoList();
     destinationFolder.mkpath(copyFolder.dirName());
-    for(auto i: copyFolder.entryInfoList()) // ovo je malo prljavo sa svim continuima
+    for(auto i: list) // ovo je malo prljavo sa svim continuima
     {
         qInfo() << i.filePath();
         qInfo() << dfolder +"/" + copyFolder.dirName()+ "/" + i.fileName();
+        if(destinationFolder == copyFolder && i.fileName()==copyFolder.dirName())
+            continue;
         if(i.fileName()=="." ||i.fileName()=="..")
             continue;
         if(i.isSymLink())
@@ -388,7 +442,7 @@ void Widget::copyFolder(const QString& cfolder, const QString& dfolder)
             Widget::copyFolder(i.filePath(), dfolder + "/" + copyFolder.dirName());
             continue;
         }
-        if(i.isFile() && i.isReadable()){
+        else if(i.isFile() && i.isReadable()){
             if(QFile::exists(dfolder +"/" + copyFolder.dirName()+ "/" + i.fileName()))
             {
                 auto reply = QMessageBox::question(this, " ",
@@ -405,26 +459,12 @@ void Widget::copyFolder(const QString& cfolder, const QString& dfolder)
                 }
 
             }
-            qInfo() << QFile::copy(i.filePath(),dfolder +"/" + copyFolder.dirName()+ "/" + i.fileName());
+            qInfo() << "copying" << QFile::copy(i.filePath(),dfolder +"/" + copyFolder.dirName()+ "/" + i.fileName());
         }
     }
 }
 
 
-void Widget::itemFinishedEditing(int row, int){
-    //ne valja!
-    auto item = flistTable->item(row,1);
-    qInfo() << row;
-
-    if(!item)
-        return;
-    item->setFlags(item->flags() & ~Qt::ItemIsEditable);
-    qInfo() << "flags?";
-    refreshTable();
-    qInfo() << itemToRename;
-    qInfo() << currentDir + "/" + item->text();
-    QFile::rename(itemToRename, currentDir + "/" + item->text());
-}
 
 
 

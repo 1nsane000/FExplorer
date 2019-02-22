@@ -1,0 +1,10 @@
+debug/main.o
+debug/widget.o
+debug/qtexteditf.o
+debug/qtablewidgetp.o
+debug/qtablewidgetitemp.o
+debug/qrc_resources.o
+debug/moc_widget.o
+debug/moc_qtexteditf.o
+debug/moc_qtablewidgetp.o
+debug/moc_qtablewidgetitemp.o

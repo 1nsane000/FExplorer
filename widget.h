@@ -22,6 +22,8 @@
 #include <QMimeData>
 #include <QClipboard>
 #include <QIcon>
+#include <qtablewidgetp.h>
+#include <qtablewidgetitemp.h>
 
 
 
@@ -62,7 +64,8 @@ private slots:
     void fpathChanged();
     void sortTable(int index);
     void contextMenu(const QPoint& post);
-    void itemFinishedEditing(int row, int);
+    //void itemFinishedEditing(int row, int);
+    void onCommitData(QWidget* lineEdit);
 
 private:
     void createTable();
@@ -74,7 +77,8 @@ private:
     QPushButton *backButton;
     QComboBox *fpathCbox;
     QComboBox *driveCbox;
-    QTableWidget *flistTable;
+    QTableWidgetp *flistTable;
+    QLineEdit* test;
     QString currentDir;
     QString itemToRename;
     SortOrder sorder;

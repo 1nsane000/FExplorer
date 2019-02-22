@@ -27,11 +27,15 @@ CONFIG += c++11
 SOURCES += \
         main.cpp \
         widget.cpp \
-    qextableitem.cpp
+    qtexteditf.cpp \
+    qtablewidgetp.cpp \
+    qtablewidgetitemp.cpp
 
 HEADERS += \
         widget.h \
-    qextableitem.h
+    qtexteditf.h \
+    qtablewidgetp.h \
+    qtablewidgetitemp.h
 
 FORMS += \
         widget.ui
